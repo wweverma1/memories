@@ -15,34 +15,36 @@ export const getPosts = async(req, res) => {
 
 export const createPost = async (req, res) => {
     const post = req.body;
-    
-    const newPost = new PostMessage(post);
 
-    try{
-        await newPost.save();
+    const newPostMessage = new PostMessage({ ...post, creator: req.userId, createdAt: new Date().toISOString() })
 
-        res.status(201).json(newPost);
-    } catch(error)
-    {
-        res.status(409).json({message: error.message});
+    try {
+        await newPostMessage.save();
+
+        res.status(201).json(newPostMessage );
+    } catch (error) {
+        res.status(409).json({ message: error.message });
     }
 }
 
 export const updatePost = async (req, res) => {
-    const { id: _id } = req.params;
-    const post = req.body;
+    const { id } = req.params;
+    const { title, message, creator, selectedFile, tags } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No memory with id: ${id}`);
 
-    if(!mongoose.Types.ObjectId.isValid(_id)) return res.status(404).send('No Memory with that id.');
+    let updatedPost = { creator, title, message, tags, selectedFile, _id: id };
 
-    const updatedPost = await PostMessage.findByIdAndUpdate(_id, { ...post, _id }, { new: true });
+    updatedPost = await PostMessage.findByIdAndUpdate(id, updatedPost, { new: true });
 
     res.json(updatedPost);
 }
 
+
 export const deletePost = async (req, res) => {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No post with id: ${id}`);
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No Memory with id: ${id}`);
 
     await PostMessage.findByIdAndRemove(id);
     console.log('Delete');
@@ -52,11 +54,24 @@ export const deletePost = async (req, res) => {
 export const likePost = async (req, res) => {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No post with id: ${id}`);
+    if(!req.userId) return res.json({message: "Unauthenticated User"});
+
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No Memory with id: ${id}`);
     
     const post = await PostMessage.findById(id);
 
-    const updatedPost = await PostMessage.findByIdAndUpdate(id, { likeCount: post.likeCount + 1 }, { new: true });
+    const index = post.likes.findIndex((id)=>id ===String(req.userId));
+
+    if(index===-1)
+    {
+        post.likes.push(req.userId);
+    }
+    else
+    {
+        post.likes = post.likes.filter((id) => id !== String(req.userId));
+    }
+
+    const updatedPost = await PostMessage.findByIdAndUpdate(id, post , { new: true });
     
     res.json(updatedPost);
 }
