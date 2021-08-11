@@ -1,4 +1,4 @@
-# memories_complete_webapp
+# memories
 
 A MERN stack based webapp where you can add/remove/edit your favourite Memories.
 
